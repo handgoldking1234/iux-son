@@ -500,7 +500,7 @@ a.go:hover{color:var(--seal);text-decoration-color:var(--seal)}
   <button id="mPush">서버에 전체 올리기 (최초 1회)</button>
   <button id="mPull">서버에서 새로고침</button>
   <hr>
-  <button id="mEditors">편집자 관리</button>
+  <button id="mEditors" hidden>편집자 관리</button>
   <hr>
   <small id="mStat"></small>
 </div>
@@ -1371,6 +1371,8 @@ const SB_KEY='';      // anon public key
 
 let sb=null, session=null, canEdit=false;
 const online=()=>!!sb;
+/* 공개 편집 모드: 로그인 없이 누구나 수정. 서버에 연결되면 항상 편집 가능 */
+const OPEN_EDIT=true;
 
 if(SB_URL&&SB_KEY&&window.supabase){
   try{ sb=window.supabase.createClient(SB_URL,SB_KEY) }catch(e){ console.warn('Supabase 초기화 실패',e) }
@@ -1384,6 +1386,14 @@ function syncMsg(m,isErr){
 }
 function setMode(){
   const m=document.getElementById('mode'), a=document.getElementById('bAuth');
+  if(OPEN_EDIT){
+    // 공개 편집 모드: 로그인 버튼 숨김, 서버 연결 시 항상 편집 가능
+    canEdit=online();
+    if(a)a.hidden=true;
+    if(m){m.hidden=!online(); m.textContent='편집 가능'; m.className='mode edit';}
+    document.body.classList.remove('readonly');
+    return;
+  }
   if(!online()){m.hidden=true;a.hidden=true;return}
   a.hidden=false;
   m.hidden=false;
@@ -1391,7 +1401,6 @@ function setMode(){
   m.className=canEdit?'mode edit':'mode';
   a.textContent=session?'로그아웃':'로그인';
   document.getElementById('bSave').hidden=false;
-  // 읽기 전용이면 편집 UI 잠금
   document.body.classList.toggle('readonly',!canEdit);
 }
 
@@ -1399,7 +1408,8 @@ function setMode(){
 async function pull(){
   if(!online())return false;
   try{
-    const {data,error}=await sb.from('people_public').select('*').order('gen');
+    const tbl=OPEN_EDIT?'people':'people_public';
+    const {data,error}=await sb.from(tbl).select('*').order('gen');
     if(error)throw error;
     if(!data||!data.length){syncMsg('서버에 데이터가 없습니다 — 백업 메뉴에서 업로드하세요',true);return false}
     P=data.map(r=>{
@@ -1510,6 +1520,7 @@ document.getElementById('authForm').addEventListener('submit',async e=>{
   }
 });
 async function checkEditor(){
+  if(OPEN_EDIT){canEdit=online();isAdmin=false;return}
   canEdit=false; isAdmin=false;
   if(!session)return;
   try{
@@ -1520,11 +1531,11 @@ async function checkEditor(){
 }
 async function initSB(){
   if(!online()){setMode();return false}
+  if(OPEN_EDIT){ canEdit=true; setMode(); return await pull(); }
   try{
     const {data}=await sb.auth.getSession();
     session=data.session||null;
     await checkEditor();
-    // OAuth(카카오)로 막 돌아온 경우 결과를 알려준다
     if(session&&justReturned()){
       if(canEdit)syncMsg('편집 가능합니다');
       else syncMsg('로그인됐지만 편집 권한이 없습니다 — 관리자에게 등록을 요청하세요',true);
@@ -1735,7 +1746,7 @@ document.getElementById('bSave').onclick=e=>{
   bmenu.style.top=(r.bottom+6)+'px';
   bmenu.style.right=Math.max(8,innerWidth-r.right)+'px';
   const ok=save();
-  document.getElementById('mEditors').hidden=!isAdmin;
+  document.getElementById('mEditors').hidden=OPEN_EDIT?true:!isAdmin;
   document.getElementById('mPush').hidden=!canEdit;
   document.getElementById('mPull').hidden=!online();
   document.getElementById('mStat').textContent=
