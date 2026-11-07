@@ -32,3 +32,6 @@
 
 구글시트로 관리하던 36~42대 가계도를 이관. 36대 '손사익'은 미확인(추정) —
 세대 연대·파 불일치로 대동보 대조 필요. 상세는 앱 내 시조 메모 참고.
+
+## 이어서 작업하기
+결정사항·코드 지도·수정 방법은 [CLAUDE.md](CLAUDE.md), 전체 프로젝트 목록은 [IUX 프로젝트 목록](https://github.com/handgoldking1234/iux-app/blob/main/docs/PROJECTS.md)에 있습니다.
